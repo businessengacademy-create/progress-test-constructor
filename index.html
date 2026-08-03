@@ -685,7 +685,41 @@ async function run(){
     var allQ=[].concat(qa1,qa2,qa5,qa6,qa7,qa8,qa9);
     var title=c1.title||(lang+' '+lvl+' Language Test');
     var subtitle='Grammar · Vocabulary · Reading · Listening · 100 Points';
-    var gramTopic=gram.split('\n')[0].replace(/"/g,"'").slice(0,80);
+    var gramTopic=(function(text){
+      var lines=text.replace(/\r/g,'').split('\n')
+        .map(function(l){return l.trim();})
+        .filter(function(l){return l.length>0;});
+
+      var blocks=[], current=null;
+      lines.forEach(function(l){
+        var mTopic=l.match(/^Topic\s*:\s*(.+)$/i);
+        if(mTopic){
+          if(current)blocks.push(current);
+          current={topic:mTopic[1].trim(),form:'',use:''};
+        } else if(current){
+          var mForm=l.match(/^Form\s*:\s*(.+)$/i);
+          var mUse=l.match(/^Use\s*:\s*(.+)$/i);
+          if(mForm)current.form=mForm[1].trim();
+          else if(mUse&&!current.use)current.use=mUse[1].trim();
+        }
+      });
+      if(current)blocks.push(current);
+
+      if(blocks.length===0){
+        // No "Topic:" markers found — fall back to the raw text
+        return lines.join('; ').replace(/"/g,"'").slice(0,600);
+      }
+
+      var parts=blocks.map(function(b,i){
+        var s='('+(i+1)+') '+b.topic;
+        var extra=[];
+        if(b.form)extra.push(b.form);
+        if(b.use)extra.push(b.use);
+        if(extra.length)s+=' — '+extra.join(', ');
+        return s;
+      });
+      return parts.join('; ').replace(/"/g,"'").slice(0,600);
+    })(gram);
 
     // Store state globally for editor
     window._testState={allQ:allQ,lines:lines,rt:rt,rh:rh,wb:wb,defs:defs,
